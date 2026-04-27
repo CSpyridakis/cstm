@@ -47,17 +47,17 @@ jobs:
             --description "Terminal countdown and stopwatch with big ASCII text"
             --url "${{ github.server_url }}/${{ github.repository }}"
             --maintainer "Christos Spyridakis <me@cspyridakis.com>"
-            -C staging .
           )
-
           # Create deb
           fpm -s dir -t deb "${BASE_ARGS[@]}" \
-            -d figlet
+            -d figlet \
+            -C staging .
 
           # Create rpm
           fpm -s dir -t rpm "${BASE_ARGS[@]}" \
             -d epel-release \
-            -d figlet
+            -d figlet \
+            -C staging .
 
       - name: Create release
         uses: softprops/action-gh-release@v2
