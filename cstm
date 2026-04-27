@@ -1,0 +1,149 @@
+#!/usr/bin/env bash
+
+# CONFIG
+CLR_GREEN="\033[1;32m"
+CLR_RST="\033[0m"
+FONT="smmono9"
+
+# SUPPORTED FONTS
+FONTS=(
+    bigmono9
+    future
+    mono12
+    mono9
+    smmono12
+    smblock
+    smmono9
+)
+
+# CLEAN EXIT
+function cleanup() {
+    tput cnorm   # show cursor
+}
+trap cleanup EXIT
+tput civis  # hide cursor for smooth UI
+
+# VALIDATE FONT
+function is_valid_font() {
+    local f="$1"
+    for font in "${FONTS[@]}"; do
+        [[ "$font" == "$f" ]] && return 0
+    done
+    return 1
+}
+
+# BIG TEXT
+function big_text() {
+    echo "$1" | figlet -f "$FONT"
+}
+
+# CENTER PRINT
+function print_center() {
+    local text="$1"
+
+    text="$(big_text "$text")"
+
+    local rows cols
+    rows=$(tput lines)
+    cols=$(tput cols)
+
+    # Move cursor to top (no full clear: less flicker)
+    tput cup 0 0
+
+    IFS=$'\n' read -rd '' -a lines <<<"$text"
+    local total_lines=${#lines[@]}
+    local y=$(( (rows - total_lines) / 2 ))
+
+    for i in "${!lines[@]}"; do
+        local line="${lines[$i]}"
+        local x=$(( (cols - ${#line}) / 2 ))
+        tput cup $((y + i)) "$x"
+        printf "${CLR_GREEN}%s${CLR_RST}" "$line"
+    done
+}
+
+# COUNTDOWN
+function countdown() {
+    local stime="$(( $(date +%s) + $1 ))"
+    while [[ "$stime" -ge "$(date +%s)" ]]; do
+        # elapsed time NEED TO stay under 24 hours
+        print_center "$(date -ud "@$(( stime - $(date +%s) ))" +%H:%M:%S)"
+        sleep 0.05
+    done
+}
+
+# STOPWATCH
+function stopwatch() {
+    local stime="$(date +%s)"
+    while :; do
+        # elapsed time NEED TO stay under 24 hours
+        print_center "$(date -ud "@$(( $(date +%s) - stime ))" +%H:%M:%S)"
+        sleep 0.05
+    done
+}
+
+# HELP 
+function help_menu() {
+    echo "Usage:"
+    echo "  $0 -s/--stopwatch [font]"
+    echo "  $0 -c/--countdown <seconds> [font]"
+    echo ""
+    echo "Options:"
+    echo "  -h, --help        Show this help menu"
+    echo ""
+    echo "Fonts:"
+    echo "  ${FONTS[*]}"
+    echo ""
+    echo "Defaults:"
+    echo "  font = smmono9"
+    exit 0
+}
+
+# NO ARGUMENTS 
+if [ $# -eq 0 ]; then
+    help_menu
+fi
+
+# CHECK FIGLET
+if ! command -v figlet >/dev/null 2>&1; then
+    echo "Error: figlet is not installed."
+    echo "Install it first"
+    exit 1
+fi
+
+# ARGUMENT PARSE
+case "$1" in
+    -h|--help)
+        help_menu
+        ;;
+    -s|--stopwatch)
+        # TODO: make this a bit better
+        if [ -n "$2" ]; then
+            if is_valid_font "$2"; then
+                FONT="$2"
+            else
+                echo "Invalid font: $2"
+                help_menu
+            fi
+        fi
+        stopwatch
+        ;;
+    -c|--countdown)
+        # TODO: make this a bit better
+        [ -z "$2" ] && help_menu
+
+        if [ -n "$3" ]; then
+            if is_valid_font "$3"; then
+                FONT="$3"
+            else
+                echo "Invalid font: $3"
+                help_menu
+            fi
+        fi
+        countdown "$2"
+        ;;
+    *)
+        echo "Unknown command: $1"
+        help_menu
+        ;;
+esac
