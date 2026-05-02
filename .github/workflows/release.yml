@@ -59,6 +59,38 @@ jobs:
             -d figlet \
             -C staging .
 
+      - name: Build Homebrew formula
+        env:
+          TAG: ${{ steps.tag.outputs.new_tag }}
+          VERSION: ${{ steps.tag.outputs.new_version }}
+          REPO: ${{ github.repository }}
+          SERVER: ${{ github.server_url }}
+        run: |
+          TARBALL_URL="${SERVER}/${REPO}/archive/refs/tags/${TAG}.tar.gz"
+          curl -sL "$TARBALL_URL" -o source.tar.gz
+          SHA256=$(sha256sum source.tar.gz | awk '{print $1}')
+
+          cat > cstm.rb <<EOF
+          class Cstm < Formula
+            desc "Terminal countdown and stopwatch with big ASCII text"
+            homepage "${SERVER}/${REPO}"
+            url "${TARBALL_URL}"
+            sha256 "${SHA256}"
+            license "MIT"
+            version "${VERSION}"
+
+            depends_on "figlet"
+
+            def install
+              bin.install "cstm"
+            end
+
+            test do
+              assert_predicate bin/"cstm", :exist?
+            end
+          end
+          EOF
+
       - name: Create release
         uses: softprops/action-gh-release@v2
         with:
@@ -68,3 +100,4 @@ jobs:
           files: |
             *.deb
             *.rpm
+            cstm.rb
